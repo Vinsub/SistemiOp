@@ -64,9 +64,11 @@ static int bthread_check_if_zombie(bthread_t bthread, void **retval) {
     if(tQueue == NULL) {
         return 0;
     }
-    if(*tQueue.ge == __BTHREAD_ZOMBIE) {
-        *retval = **tQueue.data.retval;
+    __bthread_private* bthreadPrivate = tqueue_get_data(tQueue);
+    if(bthreadPrivate->state == __BTHREAD_ZOMBIE) {
+        return 1;
     }
+    return 0;
 
 }
 
@@ -103,7 +105,7 @@ int bthread_join(bthread_t bthread, void **retval) {
 }
 
 
-}
+
 
 
 /*
