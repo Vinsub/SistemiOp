@@ -61,7 +61,6 @@ int bthread_create(bthread_t *bthread,
 */
 static int bthread_check_if_zombie(bthread_t bthread, void **retval) {
     TQueue tQueue = bthread_get_queue_at(bthread);
-    **tQueue->data;
     if(tQueue == NULL) {
         return 0;
     }
