@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/SistemiOp.dir/main.c.o CMakeFiles/SistemiOp.dir/tqueue.c.o CMakeFiles/SistemiOp.dir/bthread.c.o  -o SistemiOp 

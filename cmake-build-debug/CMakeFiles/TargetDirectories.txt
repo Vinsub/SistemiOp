@@ -1,0 +1,3 @@
+/mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/cmake-build-debug/CMakeFiles/SistemiOp.dir
+/mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/cmake-build-debug/CMakeFiles/edit_cache.dir
