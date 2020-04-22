@@ -163,9 +163,11 @@ static TQueue bthread_get_queue_at(bthread_t bthread) {
 */
 void bthread_yield(){
     volatile __bthread_scheduler_private* schedulerPrivate = bthread_get_scheduler();
-    __bthread_private* bthreadPrivate = schedulerPrivate->current_item;
-    save_context(bthreadPrivate->context);
-    restore_context(schedulerPrivate->context);
+    __bthread_private* bthreadPrivate = (__bthread_private*) tqueue_get_data(schedulerPrivate->current_item);
+    if (save_context(bthreadPrivate->context)){
+        restore_context(schedulerPrivate->context);
+    }
+
 }
 
 // Threads might decide to sleep for a while using the following procedure:

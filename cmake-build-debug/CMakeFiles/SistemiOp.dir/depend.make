@@ -6,6 +6,7 @@ CMakeFiles/SistemiOp.dir/bthread.c.o: ../bthread.h
 CMakeFiles/SistemiOp.dir/bthread.c.o: ../bthread_private.h
 CMakeFiles/SistemiOp.dir/bthread.c.o: ../tqueue.h
 
+CMakeFiles/SistemiOp.dir/main.c.o: ../bthread.h
 CMakeFiles/SistemiOp.dir/main.c.o: ../main.c
 CMakeFiles/SistemiOp.dir/main.c.o: ../tqueue.h
 
