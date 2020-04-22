@@ -17,14 +17,17 @@ unsigned long int tqueue_enqueue(TQueue* q, void* data){
     int index = 0;
     TQueueNode* temp = malloc(sizeof(TQueueNode));
     TQueueNode* last;
-    if (*q == NULL){
+    if (q == NULL) {
+        return NULL;
+    }
+    if(*q == NULL){
         (*temp).data = data;
         (*temp).next = temp;
         *q = temp;
     }else{
         last = *q;
-        while((*last).next != *q){
-            last = (*last).next;
+        while(last->next != *q){
+            last = last->next;
             index++;
         }
         (*temp).data = data;
@@ -38,18 +41,21 @@ unsigned long int tqueue_enqueue(TQueue* q, void* data){
 /* Removes and returns the element at the beginning of the list, NULL if the
 queue is empty */
 void* tqueue_pop(TQueue* q){
-    if (*q == NULL){
+    if (q == NULL){
         return NULL;
     }else{
-        TQueueNode* temp;
-        temp = *q;
-        while((*temp).next != *q) {
-            temp = (*temp).next;
+        TQueueNode* first = *q;
+        TQueueNode* temp = first;
+        if(first == first->next){
+            *q = NULL;
+            return first->data;
         }
-        (*temp).next = (**q).next;
-        temp = *q;
-        *q = (**q).next;
-        return (*temp).data;
+        while(temp->next != first) {
+            temp = temp->next;
+        }
+        temp->next = first->next;
+        *q = temp->next;
+        return first->data;
     }
 }
 
@@ -59,10 +65,9 @@ unsigned long int tqueue_size(TQueue q){
     if ((q) == NULL) {
         return 0;
     }else{
-        TQueueNode* temp;
-        temp = q;
-        while((*temp).next != q){
-            temp = (*temp).next;
+        TQueueNode *temp = q;
+        while(temp->next != q){
+            temp = temp->next;
             index++;
         }
         index++;

@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <sys/time.h>
 #include "bthread.h"
 #include "bthread_private.h"
 
@@ -12,6 +13,16 @@
 #define save_context(CONTEXT) sigsetjmp(CONTEXT, 1)
 #define restore_context(CONTEXT) siglongjmp(CONTEXT, 1)
 
+#define bthread_printf(...) \
+    printf(__VA_ARGS__); \
+    bthread_yield();
+
+
+double get_current_time_millis(){
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
+}
 /*This private function creates, maintains and returns a static pointer to the singleton instance of
 *        __bthread_scheduler_private. Fields of this structure need to be initialized as NULL.
 *Other functions will call this method to obtain this pointer. This function should not be accessible
@@ -26,6 +37,7 @@ __bthread_scheduler_private* bthread_get_scheduler(){
         bthreadSchedulerPrivate->current_item = NULL;
         bthreadSchedulerPrivate->current_tid = 0;
     }
+    return bthreadSchedulerPrivate;
 }
 
 /*Creates a new thread structure and puts it at the end of the queue. The thread identifier (stored
@@ -38,8 +50,9 @@ int bthread_create(bthread_t *bthread,
                    void *(*start_routine) (void *),
                    void *arg){
     __bthread_private* new_bthread = malloc(sizeof(__bthread_private));
-    __bthread_scheduler_private* scheduler = bthread_get_scheduler();
-    int id = tqueue_enqueue(&scheduler->queue, new_bthread);
+    volatile __bthread_scheduler_private* scheduler = bthread_get_scheduler();
+    //TQueue tQueue = scheduler->queue;
+    unsigned long id = tqueue_enqueue(&scheduler->queue, new_bthread);
     //new_bthread->context =
     new_bthread->state = __BTHREAD_READY;
     new_bthread->arg = arg;
@@ -48,7 +61,7 @@ int bthread_create(bthread_t *bthread,
     new_bthread->stack = NULL;
     new_bthread->tid = id;
     *bthread = new_bthread->tid;
-    return id;
+    return 0;
 }
 
 /*Checks whether the thread referenced by the parameter bthread has reached a zombie state. If
@@ -66,12 +79,28 @@ static int bthread_check_if_zombie(bthread_t bthread, void **retval) {
     }
     __bthread_private* bthreadPrivate = tqueue_get_data(tQueue);
     if(bthreadPrivate->state == __BTHREAD_ZOMBIE) {
+        if(retval!=NULL){
+            *retval = bthreadPrivate->retval;
+        }
+        free(bthreadPrivate->stack);
+        tqueue_pop(&tQueue); //bisogna fare il pop del thread dalla coda?
         return 1;
     }
     return 0;
-
 }
 
+/* Terminates the calling thread and returns a value via retval that will be available to another
+*  thread in the same process that calls bthread_join, then yields to the scheduler. Between
+*  bthread_exit and the corresponding bthread_join the thread stays in the
+*  __BTHREAD_ZOMBIE state.
+*/
+void bthread_exit(void *retval){
+    volatile __bthread_scheduler_private* scheduler = bthread_get_scheduler();
+    __bthread_private* bthreadPrivate = tqueue_get_data(scheduler->current_item);
+    bthreadPrivate->retval = retval;
+    bthreadPrivate->state = __BTHREAD_ZOMBIE;
+    restore_context(scheduler->context);
+}
 /*Waits for the thread specified by bthread to terminate (i.e. __BTHREAD_ZOMBIE state), by
  *       scheduling all the threads. In the following we will discuss some details about this procedure.
 */
@@ -79,7 +108,9 @@ int bthread_join(bthread_t bthread, void **retval) {
     volatile __bthread_scheduler_private *scheduler = bthread_get_scheduler();
     scheduler->current_item = scheduler->queue;
     save_context(scheduler->context);
-    if (bthread_check_if_zombie(bthread, retval)) return 0;
+    if (bthread_check_if_zombie(bthread, retval)){
+        return 0;
+    }
     __bthread_private *tp;
     do {
         scheduler->current_item = tqueue_at_offset(scheduler->current_item, 1);
@@ -104,30 +135,46 @@ int bthread_join(bthread_t bthread, void **retval) {
     }
 }
 
-
-
-
-
 /*
  * Returns a "view" on the queue beginning at the node containing data for the thread identified by
  * bthread. If the queue is empty or doesn't contain the corresponding data this function returns NULL.
  */
 static TQueue bthread_get_queue_at(bthread_t bthread) {
     volatile __bthread_scheduler_private* scheduler = bthread_get_scheduler();
-    TQueue node = scheduler->current_item;
-    __bthread_private* tp;
-    do {
-        tp = (__bthread_private*) tqueue_get_data(node);
-        // empty queue
-        if(tp == NULL)
-            return NULL;
-
-        if(tp->tid == bthread)
-            return node;
-
-        node = tqueue_at_offset(node, 1);
-    } while (node != scheduler->current_item);
-
-    // bthread not found
+    TQueue queue = scheduler->current_item;
+    __bthread_private* temp;
+    for(int i = 0 ; i < tqueue_size(queue); i++){
+        if(tqueue_get_data(queue)!=NULL){
+            temp = tqueue_get_data(queue);
+            if(temp->tid == bthread) {
+                return queue;
+            }
+            queue = tqueue_at_offset(queue, 1);
+        }
+    }
     return NULL;
 }
+
+/* Saves the thread context and restores (long-jumps to) the scheduler context. Saving the thread
+* context is achieved using sigsetjmp, which is similar to setjmp but can also save the signal
+* mask if the provided additional parameter is not zero (to restore both the context and the signal
+* mask the corresponding call is siglongjmp). Saving and restoring the signal mask is required
+* for implementing preemption.
+*/
+void bthread_yield(){
+    volatile __bthread_scheduler_private* schedulerPrivate = bthread_get_scheduler();
+    __bthread_private* bthreadPrivate = schedulerPrivate->current_item;
+    save_context(bthreadPrivate->context);
+    restore_context(schedulerPrivate->context);
+}
+
+// Threads might decide to sleep for a while using the following procedure:
+void bthread_sleep(double ms){
+    volatile __bthread_scheduler_private* schedulerPrivate = bthread_get_scheduler();
+    __bthread_private* bthreadPrivate = schedulerPrivate->current_item;
+    bthreadPrivate->state = __BTHREAD_SLEEPING;
+    double to_time = get_current_time_millis()+ms;
+    bthreadPrivate->wake_up_time = to_time;
+    restore_context(schedulerPrivate->context);
+}
+

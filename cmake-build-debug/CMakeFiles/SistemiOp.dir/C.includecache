@@ -13,6 +13,8 @@ stdlib.h
 -
 stdint.h
 -
+sys/time.h
+-
 bthread.h
 /mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/bthread.h
 bthread_private.h
@@ -39,6 +41,8 @@ stdlib.h
 -
 tqueue.h
 /mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/tqueue.h
+bthread.h
+/mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/bthread.h
 
 /mnt/c/Users/Vincenzo/CLionProjects/SistemiOp/tqueue.c
 stdlib.h
