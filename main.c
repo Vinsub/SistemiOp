@@ -116,9 +116,9 @@ int main() {
 //
 //    return 0;
 
-   //test_tqueue_null();
-   //test_tqueue_many_elements();
-   //test_tqueue_one_element();
+   test_tqueue_null();
+   test_tqueue_many_elements();
+   test_tqueue_one_element();
    test_bthread_create();
 }
 /*
